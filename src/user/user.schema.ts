@@ -29,7 +29,7 @@ export class User {
     required: false,
     validate: {
       validator: (v: string) => /^(093|094|095|096|099)\d{7}$/.test(v),
-      message: 'رقم الهاتف يجب أن يكون رقم جوال سوري صالحاً (10 أرقام، يبدأ بـ 093، 094، 095، 096، أو 099)',
+    message: 'Phone number must be a valid Syrian mobile number (10 digits, starting with 093, 094, 095, 096, or 099)',
     },
     })
     phone?: string;
