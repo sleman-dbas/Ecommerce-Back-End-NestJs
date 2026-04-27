@@ -7,9 +7,6 @@ export type UserDocument = HydratedDocument<User>;
 @Schema({timestamps: true})
 export class User {
 
-    @Prop({required: true,unique: true,auto: true})
-    "id": number;
-
     @Prop({required: true,maxlength:30,minlength: 3})
     "name": string;
 
@@ -31,11 +28,11 @@ export class User {
     @Prop({
     required: false,
     validate: {
-      validator: (v: number) => /^(010|011|012|015)\d{8}$/.test(String(v)),
-      message: 'Phone must be a valid Egyptian mobile number (11 digits starting with 010,011,012,015)',
+      validator: (v: string) => /^(093|094|095|096|099)\d{7}$/.test(v),
+      message: 'رقم الهاتف يجب أن يكون رقم جوال سوري صالحاً (10 أرقام، يبدأ بـ 093، 094، 095، 096، أو 099)',
     },
     })
-    "phone"?: number;
+    phone?: string;
     
     @Prop({ required: false })
     "address"?: string;
