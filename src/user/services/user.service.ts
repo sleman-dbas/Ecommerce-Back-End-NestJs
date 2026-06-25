@@ -11,6 +11,8 @@ import { UpdateUserDto } from '../dto/update-user.dto';
 export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
+  // these api for admin to manage users and for admin to create new users and for admin to update users and for admin to delete users and for admin to get all users and for admin to get a single user by id
+  
   async create(createUserDto: CreateUserDto) {
     const existing = await this.userModel.findOne({ email: createUserDto.email });
     if (existing) throw new HttpException('Email already exists', 400);

@@ -43,6 +43,8 @@ export class User {
 
   @Prop({ enum: ['male', 'female'] })
   gender?: string;
+
+  @Prop({ default: 0 }) tokenVersion!: number;
 }
 
 

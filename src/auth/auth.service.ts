@@ -28,10 +28,9 @@ export class AuthService {
       email: registerAuthDto.email,
       name: registerAuthDto.name,
       password: hashedPassword,
-      role: registerAuthDto.role ?? 'customer',
     });
 
-    const { password, ...result } = newUser.toObject(); // تحويل إلى كائن عادي لاستبعاد كلمة المرور
+    const { password, ...result } = newUser.toObject(); 
 
     return {
       user: result,
@@ -86,7 +85,7 @@ export class AuthService {
   async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret: 'refresh_secret', // يفضل نقله إلى ConfigService
+        secret: process.env.REFRESH_TOKEN_SECRET,
       });
 
       const user = await this.userModel.findById(payload.sub);
@@ -94,11 +93,12 @@ export class AuthService {
         throw new UnauthorizedException('Invalid Token');
       }
 
-      // توليد توكنات جديدة (rotation)
+      if (Number(payload.tokenVersion ?? 0) !== Number(user.tokenVersion ?? 0)) {
+        throw new UnauthorizedException('Invalid Token');
+      }
+
       const newAccessToken = this.generateAccessToken(user);
       const newRefreshToken = this.generateRefreshToken(user);
-
-      // (اختياري) يمكنك حفظ refreshToken الجديد في قاعدة البيانات وإبطال القديم
 
       return {
         accessToken: newAccessToken,
@@ -122,7 +122,15 @@ export class AuthService {
       role: userData.role,
       name: userData.name,
       email: userData.email,
+      tokenVersion: userData.tokenVersion ?? 0,
     };
+  }
+
+  async revokeAllUserSessions(userId: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $inc: { tokenVersion: 1 } },
+    );
   }
 
   private async hashpassword(password: string): Promise<string> {
@@ -136,19 +144,20 @@ export class AuthService {
   private generateToken(user: UserDocument) {
     return {
       accessToken: this.generateAccessToken(user),
-      refreshToken: this.generateRefreshToken(user), // كان generateRefershToken
+      refreshToken: this.generateRefreshToken(user),
     };
   }
 
   private generateAccessToken(user: UserDocument): string {
     const payload = {
       email: user.email,
-      sub: user._id.toString(), // استخدام _id وتحويله إلى نص
+      sub: user._id.toString(),
       role: user.role,
+      tokenVersion: user.tokenVersion ?? 0,
     };
 
     return this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET, // يفضل وضعها في ConfigService
+      secret: process.env.JWT_SECRET,
       expiresIn: '15m',
     });
   }
@@ -156,6 +165,7 @@ export class AuthService {
   private generateRefreshToken(user: UserDocument): string {
     const payload = {
       sub: user._id.toString(),
+      tokenVersion: user.tokenVersion ?? 0,
     };
 
     return this.jwtService.sign(payload, {
