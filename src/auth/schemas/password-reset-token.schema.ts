@@ -11,7 +11,7 @@ export class PasswordResetToken {
   @Prop({ required: true })
   otpHash: string;
 
-  @Prop({ required: true, index: true })
+  @Prop({ required: true })
   expiresAt: Date;
 
   @Prop({ default: false })
@@ -35,4 +35,4 @@ export class PasswordResetToken {
 
 export const PasswordResetTokenSchema = SchemaFactory.createForClass(PasswordResetToken);
 PasswordResetTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-// PasswordResetTokenSchema.index({ email: 1, isUsed: 1, expiresAt: -1 });
+PasswordResetTokenSchema.index({ email: 1, isUsed: 1, expiresAt: -1 });
