@@ -1,5 +1,6 @@
-import { Controller, Post, Body, UseGuards, Get, HttpStatus, HttpCode, UnauthorizedException, Patch, Param } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, HttpStatus, HttpCode, UnauthorizedException, Res, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { PasswordResetService } from './services/password-reset.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt.guard';
@@ -7,12 +8,17 @@ import { Roles } from './decorators/roles.decorators';
 import { RolesGuard } from './guards/role.guard';
 import { CurrentUser } from './decorators/user.decorator';
 import type { Request, Response } from 'express';  
-import { Res, Req } from '@nestjs/common';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {} 
+  constructor(
+    private authService: AuthService,
+    private passwordResetService: PasswordResetService,
+  ) {} 
 
   @Post("register")
   @HttpCode(HttpStatus.CREATED)
@@ -68,6 +74,24 @@ async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Respons
   
   return { message: 'Token refreshed' };
 }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    return this.passwordResetService.forgotPassword(dto, req.ip ?? 'unknown');
+  }
+
+  @Post('verify-reset-code')
+  @HttpCode(HttpStatus.OK)
+  verifyResetCode(@Body() dto: VerifyResetCodeDto, @Req() req: Request) {
+    return this.passwordResetService.verifyResetCode(dto, req.ip ?? 'unknown');
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    return this.passwordResetService.resetPassword(dto, req.ip ?? 'unknown');
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')

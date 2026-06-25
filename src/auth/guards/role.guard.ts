@@ -15,7 +15,6 @@ export class RolesGuard implements CanActivate {
       ],
     );
 
-    // إذا لم يتم تحديد Roles → السماح بالوصول
     if (!requiredRoles) {
       return true;
     }

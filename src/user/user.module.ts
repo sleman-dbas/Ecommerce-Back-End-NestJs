@@ -12,7 +12,7 @@ import { ProfileService } from './services/profile.service';
     UserModule, 
   ],
   controllers: [UserController,ProfileController], 
-  providers: [UserService,UserModule ,ProfileService], 
+  providers: [UserService ,ProfileService], 
   exports: [UserService], 
 })
 export class UserModule {}
