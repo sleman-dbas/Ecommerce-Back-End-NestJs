@@ -2,24 +2,38 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from './user/user.module';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigType } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
+import appConfig from './config/app.config';
+import databaseConfig from './config/database.config';
+import authConfig from './config/auth.config';
+import mailConfig from './config/mail.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      load: [appConfig, databaseConfig, authConfig, mailConfig],
     }),
-    MongooseModule.forRoot('mongodb://localhost:27017/ecommerce'),
+    MongooseModule.forRootAsync({
+      inject: [databaseConfig.KEY],
+      useFactory: (databaseConfiguration: ConfigType<typeof databaseConfig>) => ({
+        uri: databaseConfiguration.uri,
+      }),
+    }),
     AuthModule,
     UserModule,
-    JwtModule.register({
+    JwtModule.registerAsync({
       global: true,
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '60s' },
+      inject: [authConfig.KEY],
+      useFactory: (authConfiguration: ConfigType<typeof authConfig>) => ({
+        secret: authConfiguration.jwtSecret,
+        signOptions: {
+          expiresIn: authConfiguration.authModuleTokenExpiresIn,
+        },
+      }),
     }),
-    
-    ],
+  ],
   controllers: [],
   providers: [],
 })

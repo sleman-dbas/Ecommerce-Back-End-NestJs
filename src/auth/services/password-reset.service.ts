@@ -2,11 +2,13 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
+import type { ConfigType } from '@nestjs/config';
 import { Model } from 'mongoose';
 import { randomInt } from 'crypto';
 import { hash, compare } from 'bcrypt';
@@ -21,6 +23,8 @@ import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { PasswordResetRateLimitService } from './password-reset-rate-limit.service';
 import { AuthService } from '../auth.service';
+import authConfig from 'src/config/auth.config';
+import mailConfig from 'src/config/mail.config';
 
 @Injectable()
 export class PasswordResetService {
@@ -31,6 +35,10 @@ export class PasswordResetService {
     private readonly jwtService: JwtService,
     private readonly rateLimitService: PasswordResetRateLimitService,
     private readonly authService: AuthService,
+    @Inject(authConfig.KEY)
+    private readonly authConfiguration: ConfigType<typeof authConfig>,
+    @Inject(mailConfig.KEY)
+    private readonly mailConfiguration: ConfigType<typeof mailConfig>,
   ) {}
 
   async forgotPassword(dto: ForgotPasswordDto, ip: string) {
@@ -120,8 +128,8 @@ export class PasswordResetService {
         resetId: record._id.toString(),
       },
       {
-        secret: process.env.RESET_PASSWORD_JWT_SECRET ?? process.env.JWT_SECRET,
-        expiresIn: '15m',
+        secret: this.authConfiguration.resetPasswordJwtSecret,
+        expiresIn: this.authConfiguration.accessTokenExpiresIn,
       },
     );
 
@@ -139,7 +147,7 @@ export class PasswordResetService {
     let payload: any;
     try {
       payload = this.jwtService.verify(dto.resetToken, {
-        secret: process.env.RESET_PASSWORD_JWT_SECRET ?? process.env.JWT_SECRET,
+        secret: this.authConfiguration.resetPasswordJwtSecret,
       });
     } catch {
       throw new UnauthorizedException('Invalid or expired reset session');
@@ -187,10 +195,9 @@ export class PasswordResetService {
   }
 
   private async sendResetEmail(email: string, otp: string) {
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
-    const fromName = process.env.GMAIL_FROM_NAME ?? 'Ecommerce Support';
-    console.log(gmailUser,"  ",gmailAppPassword);
+    const gmailUser = this.mailConfiguration.gmailUser;
+    const gmailAppPassword = this.mailConfiguration.gmailAppPassword;
+    const fromName = this.mailConfiguration.fromName;
     
     if (!gmailUser || !gmailAppPassword) {
       throw new Error(

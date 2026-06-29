@@ -1,17 +1,21 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { User, UserDocument } from '../user/user.schema';
 import { compare, hash } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
+import type { ConfigType } from '@nestjs/config';
 import { Model } from 'mongoose';
+import authConfig from 'src/config/auth.config';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
+    @Inject(authConfig.KEY)
+    private readonly authConfiguration: ConfigType<typeof authConfig>,
   ) {}
 
   async register(registerAuthDto: RegisterDto) {
@@ -85,7 +89,7 @@ export class AuthService {
   async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret: process.env.REFRESH_TOKEN_SECRET,
+        secret: this.authConfiguration.refreshTokenSecret,
       });
 
       const user = await this.userModel.findById(payload.sub);
@@ -157,8 +161,8 @@ export class AuthService {
     };
 
     return this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET,
-      expiresIn: '15m',
+      secret: this.authConfiguration.jwtSecret,
+      expiresIn: this.authConfiguration.accessTokenExpiresIn,
     });
   }
 
@@ -169,8 +173,8 @@ export class AuthService {
     };
 
     return this.jwtService.sign(payload, {
-      secret: process.env.REFRESH_TOKEN_SECRET,
-      expiresIn: '7d',
+      secret: this.authConfiguration.refreshTokenSecret,
+      expiresIn: this.authConfiguration.refreshTokenExpiresIn,
     });
   }
 
