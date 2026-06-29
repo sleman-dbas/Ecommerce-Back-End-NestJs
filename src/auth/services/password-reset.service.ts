@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Model } from 'mongoose';
 import { randomInt } from 'crypto';
 import { hash, compare } from 'bcrypt';
+import nodemailer from 'nodemailer';
 import { User, UserDocument } from 'src/user/user.schema';
 import {
   PasswordResetToken,
@@ -60,9 +61,7 @@ export class PasswordResetService {
       requestIp: ip,
     });
 
-    // Mocked email delivery. Replace with a mail provider in production.
-    // eslint-disable-next-line no-console
-    console.log(`Password reset OTP for ${email}: ${otp}`);
+    await this.sendResetEmail(email, otp);
 
     return { message: 'If this email exists, a reset code has been sent' };
   }
@@ -185,5 +184,41 @@ export class PasswordResetService {
 
   private normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
+  }
+
+  private async sendResetEmail(email: string, otp: string) {
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+    const fromName = process.env.GMAIL_FROM_NAME ?? 'Ecommerce Support';
+    console.log(gmailUser,"  ",gmailAppPassword);
+    
+    if (!gmailUser || !gmailAppPassword) {
+      throw new Error(
+        'Gmail is not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD in the environment.',
+      );
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: gmailUser,
+        pass: gmailAppPassword,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `${fromName} <${gmailUser}>`,
+      to: email,
+      subject: 'Your password reset code',
+      text: `Your password reset code is: ${otp}\nThis code expires in 15 minutes.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+          <h2>Password reset code</h2>
+          <p>Your password reset code is:</p>
+          <div style="font-size: 28px; font-weight: 700; letter-spacing: 6px; margin: 16px 0;">${otp}</div>
+          <p>This code expires in 15 minutes.</p>
+        </div>
+      `,
+    });
   }
 }

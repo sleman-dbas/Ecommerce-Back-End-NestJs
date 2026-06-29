@@ -75,6 +75,24 @@ async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Respons
   return { message: 'Token refreshed' };
 }
 
+  @Post('create-admin')
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard,RolesGuard) // firt should be authonicated user second must be admin user 
+  createAdmin(@Body() RegisterAuthDto: RegisterDto){
+    return this.authService.createAdmin(RegisterAuthDto);
+  }
+
+
+  @Post("logout")
+  @HttpCode(HttpStatus.OK)
+  async logout(@Res({ passthrough: true }) res: Response) {
+  res.clearCookie('access_token');
+  res.clearCookie('refresh_token');
+  return { message: 'Logged out successfully' };
+  }
+
+
+  // Password reset endpoints
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
@@ -98,22 +116,4 @@ async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Respons
   getprofile(@CurrentUser() user : any){
     return user;
   }
-
-
-  @Post('create-admin')
-  @Roles("admin")
-  @UseGuards(JwtAuthGuard,RolesGuard) // firt should be authonicated user second must be admin user 
-  createAdmin(@Body() RegisterAuthDto: RegisterDto){
-    return this.authService.createAdmin(RegisterAuthDto);
-  }
-
-
-  @Post("logout")
-  @HttpCode(HttpStatus.OK)
-  async logout(@Res({ passthrough: true }) res: Response) {
-  res.clearCookie('access_token');
-  res.clearCookie('refresh_token');
-  return { message: 'Logged out successfully' };
-  }
-
 }

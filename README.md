@@ -31,6 +31,18 @@
 $ npm install
 ```
 
+## Gmail setup for forgot password
+
+Set these environment variables before running the app so password reset codes are sent through Gmail SMTP:
+
+```bash
+GMAIL_USER=your-gmail-address@gmail.com
+GMAIL_APP_PASSWORD=your-gmail-app-password
+GMAIL_FROM_NAME=Ecommerce Support
+```
+
+Use a Gmail App Password, not your normal Gmail password.
+
 ## Compile and run the project
 
 ```bash

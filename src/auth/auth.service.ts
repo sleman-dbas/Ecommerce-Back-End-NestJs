@@ -124,7 +124,7 @@ export class AuthService {
       email: userData.email,
       tokenVersion: userData.tokenVersion ?? 0,
     };
-  }
+  } 
 
   async revokeAllUserSessions(userId: string): Promise<void> {
     await this.userModel.updateOne(
