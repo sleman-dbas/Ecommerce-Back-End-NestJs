@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { MongoExceptionFilter } from './common/filters/mongo-exception.filter';
+import { AllExceptionFilter } from './common/filters/all-exception.filter';
 import { MongooseValidationFilter } from './common/filters/mongoose-validation.filter';
 import cookieParser from 'cookie-parser';
 import appConfig from './config/app.config';
@@ -25,7 +26,8 @@ async function bootstrap() {
 
   app.useGlobalFilters(
     new MongoExceptionFilter(),
-    new MongooseValidationFilter()
+    new MongooseValidationFilter(),
+    new AllExceptionFilter(),
   );
 
   await app.listen(appConfiguration.port);
