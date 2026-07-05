@@ -22,7 +22,7 @@ import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { PasswordResetRateLimitService } from './password-reset-rate-limit.service';
-import { AuthService } from '../auth.service';
+import { AuthService } from './auth.service';
 import authConfig from 'src/config/auth.config';
 import mailConfig from 'src/config/mail.config';
 
