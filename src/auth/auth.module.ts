@@ -5,12 +5,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { MongooseModule } from '@nestjs/mongoose';
-import { User, UserSchema } from 'src/user/user.schema';
+import { User, UserSchema } from '../user/user.schema';
 import { PasswordResetToken, PasswordResetTokenSchema } from './schemas/password-reset-token.schema';
 import { PasswordResetService } from './services/password-reset.service';
 import { PasswordResetRateLimitService } from './services/password-reset-rate-limit.service';
-import authConfig from 'src/config/auth.config';
-import mailConfig from 'src/config/mail.config';
+import authConfig from '../config/auth.config';
+import mailConfig from '../config/mail.config';
 
 @Module({
   imports: [

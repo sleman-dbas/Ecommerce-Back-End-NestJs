@@ -13,7 +13,7 @@ import { Model } from 'mongoose';
 import { randomInt } from 'crypto';
 import { hash, compare } from 'bcrypt';
 import nodemailer from 'nodemailer';
-import { User, UserDocument } from 'src/user/user.schema';
+import { User, UserDocument } from '../../user/user.schema';
 import {
   PasswordResetToken,
   PasswordResetTokenDocument,
@@ -23,8 +23,8 @@ import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { PasswordResetRateLimitService } from './password-reset-rate-limit.service';
 import { AuthService } from './auth.service';
-import authConfig from 'src/config/auth.config';
-import mailConfig from 'src/config/mail.config';
+import authConfig from '../../config/auth.config';
+import mailConfig from '../../config/mail.config';
 
 @Injectable()
 export class PasswordResetService {
@@ -49,7 +49,7 @@ export class PasswordResetService {
     if (!user) {
       return { message: 'If this email exists, a reset code has been sent' };
     }
-
+    // Mark all previous unused tokens for this email as used
     await this.passwordResetTokenModel.updateMany(
       { email, isUsed: false },
       { $set: { isUsed: true, usedAt: new Date() } },

@@ -8,12 +8,12 @@ import { Roles } from './decorators/roles.decorators';
 import { RolesGuard } from './guards/role.guard';
 import { CurrentUser } from './decorators/user.decorator';
 import type { Request, Response } from 'express';  
-import { UpdateUserDto } from 'src/user/dto/update-user.dto';
+import { UpdateUserDto } from '../user/dto/update-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import type { ConfigType } from '@nestjs/config';
-import appConfig from 'src/config/app.config';
+import appConfig from '../config/app.config';
 
 @Controller('auth')
 export class AuthController {

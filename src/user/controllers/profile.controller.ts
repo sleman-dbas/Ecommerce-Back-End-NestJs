@@ -9,13 +9,13 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import { CurrentUser } from 'src/auth/decorators/user.decorator';
+import { CurrentUser } from '../../auth/decorators/user.decorator';
 import { ProfileService } from '../services/profile.service';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { UpdateProfileDto } from '../dto/UpdateProfile.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { RolesGuard } from 'src/auth/guards/role.guard';
-import { Roles } from 'src/auth/decorators/roles.decorators';
+import { JwtAuthGuard } from '../../auth/guards/jwt.guard';
+import { RolesGuard } from '../../auth/guards/role.guard';
+import { Roles } from '../../auth/decorators/roles.decorators';
 
 @Controller('profile')
 @UseGuards(JwtAuthGuard, RolesGuard)  // أضف RolesGuard هنا

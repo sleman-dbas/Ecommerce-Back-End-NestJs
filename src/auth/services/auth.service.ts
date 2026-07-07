@@ -7,7 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import type { ConfigType } from '@nestjs/config';
 import { Model } from 'mongoose';
-import authConfig from 'src/config/auth.config';
+import authConfig from '../../config/auth.config';
 
 @Injectable()
 export class AuthService {

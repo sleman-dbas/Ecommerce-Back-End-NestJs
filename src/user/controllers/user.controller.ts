@@ -13,8 +13,8 @@ import { UserService } from '../services/user.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt.guard';
-import { Roles } from 'src/auth/decorators/roles.decorators';
-import { RolesGuard } from 'src/auth/guards/role.guard';
+import { Roles } from '../../auth/decorators/roles.decorators';
+import { RolesGuard } from '../../auth/guards/role.guard';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)  // أضف RolesGuard هنا

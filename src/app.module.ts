@@ -4,6 +4,7 @@ import { UserModule } from './user/user.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
+import { CategoryModule } from './category/category.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
@@ -33,6 +34,7 @@ import mailConfig from './config/mail.config';
         },
       }),
     }),
+    CategoryModule,
   ],
   controllers: [],
   providers: [],
