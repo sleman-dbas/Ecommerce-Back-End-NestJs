@@ -24,7 +24,7 @@ export class Category {
 
   // 5. المسار الكامل من الجذر (Materialized Path) - سحر الأداء في MongoDB
   //    مثال: "65f3a2b1c7d8e9f012345678,65f3a2b1c7d8e9f012345679,65f3a2b1c7d8e9f012345680"
-  @Prop({ required: true, default: '' })
+  @Prop({ type: String, default: '' })
   "path": string;
 
   // 6. عمق التصنيف في الشجرة (الجذر = 0، الابن المباشر = 1، إلخ)

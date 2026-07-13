@@ -146,7 +146,7 @@ export class CategoriesService {
           tree_depth: newDepth,
           path: newPath,
         },
-        { new: true, runValidators: true },
+        { returnDocument: 'after', runValidators: true },
       )
       .exec();
 

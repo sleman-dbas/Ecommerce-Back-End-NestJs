@@ -11,6 +11,7 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateCategoryDto {
   @IsString()
@@ -24,6 +25,7 @@ export class CreateCategoryDto {
   @MaxLength(500, { message: 'Description is too long (maximum 500 characters)' })
   description?: string;
 
+  @ApiProperty({description: 'Parent category ID (optional)', required: false})
   @IsOptional()
   @IsMongoId({ message: 'Parent ID must be a valid MongoDB ObjectId' })
   parent_id?: string;
@@ -32,6 +34,7 @@ export class CreateCategoryDto {
   @IsUrl({}, { message: 'Image URL must be a valid URL' })
   image?: string;
 
+  @ApiProperty({description: 'Category order (optional)', required: false})
   @IsOptional()
   @IsNumber()
   @Min(0, { message: 'Order must be 0 or greater' })

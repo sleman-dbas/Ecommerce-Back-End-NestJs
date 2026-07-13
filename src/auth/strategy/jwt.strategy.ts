@@ -5,7 +5,7 @@ import { AuthService } from "../services/auth.service";
 import { Request } from "express";
 import type { ConfigType } from "@nestjs/config";
 import { Inject } from "@nestjs/common";
-import authConfig from "src/config/auth.config";
+import authConfig from "../../config/auth.config";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy){
