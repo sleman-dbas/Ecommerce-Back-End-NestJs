@@ -2,10 +2,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ApiResponseDto<T = unknown> {
   @ApiProperty({ example: true })
-  success: boolean;
+  success!: boolean;
 
   @ApiProperty({ example: 200 })
-  statusCode: number; 
+  statusCode!: number; 
  
   @ApiPropertyOptional({ example: 'Request completed successfully' })
   message?: string;
