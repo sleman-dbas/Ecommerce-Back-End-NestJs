@@ -8,12 +8,12 @@ import { Roles } from './decorators/roles.decorators';
 import { RolesGuard } from './guards/role.guard';
 import { CurrentUser } from './decorators/user.decorator';
 import type { Request, Response } from 'express';  
-import { UpdateUserDto } from '../user/dto/update-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import type { ConfigType } from '@nestjs/config';
 import appConfig from '../config/app.config';
+import { UserResponseDto } from '../common/dto/responses/user-response.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -26,15 +26,15 @@ export class AuthController {
 
   @Post("register")
   @HttpCode(HttpStatus.CREATED)
-  register(@Body() registerAuthDto: RegisterDto) {
+  register(@Body() registerAuthDto: RegisterDto): Promise<{ user: UserResponseDto; message: string }> {
     return this.authService.register(registerAuthDto);
   }
 
 
 @Post("login")
 @HttpCode(HttpStatus.OK)
-async login(@Body() loginAuthDto: LoginDto, @Res({ passthrough: true }) res: Response) {
-  const { accessToken, refreshToken } = await this.authService.login(loginAuthDto);
+async login(@Body() loginAuthDto: LoginDto, @Res({ passthrough: true }) res: Response): Promise<{ user: UserResponseDto; message: string }> {
+  const { user, accessToken, refreshToken } = await this.authService.login(loginAuthDto);
   const isProduction = this.appConfiguration.nodeEnv === 'production';
   res.cookie('access_token', accessToken, {
     httpOnly: true,
@@ -50,19 +50,19 @@ async login(@Body() loginAuthDto: LoginDto, @Res({ passthrough: true }) res: Res
     maxAge: 7 * 24 * 60 * 60 * 1000, 
   });
 
-  return { message: 'Login successful' };
+  return { user, message: 'Login successful' };
 }
   
 @Post("refresh-token")
 @HttpCode(HttpStatus.OK)
-async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<{ user: UserResponseDto; message: string }> {
   const refreshToken = req.cookies['refresh_token'];
   const isProduction = this.appConfiguration.nodeEnv === 'production';
   if (!refreshToken) {
     throw new UnauthorizedException('Refresh token missing');
   }
   
-  const { accessToken, refreshToken: newRefreshToken } = await this.authService.refreshToken(refreshToken);
+  const { user, accessToken, refreshToken: newRefreshToken } = await this.authService.refreshToken(refreshToken);
   
   res.cookie('access_token', accessToken, {
     httpOnly: true,
@@ -78,20 +78,20 @@ async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Respons
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
   
-  return { message: 'Token refreshed' };
+  return { user, message: 'Token refreshed' };
 }
 
   @Post('create-admin')
   @Roles("admin")
   @UseGuards(JwtAuthGuard,RolesGuard) // firt should be authonicated user second must be admin user 
-  createAdmin(@Body() RegisterAuthDto: RegisterDto){
+  createAdmin(@Body() RegisterAuthDto: RegisterDto): Promise<{ user: UserResponseDto; message: string }> {
     return this.authService.createAdmin(RegisterAuthDto);
   }
 
 
   @Post("logout")
   @HttpCode(HttpStatus.OK)
-  async logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Res({ passthrough: true }) res: Response): Promise<{ message: string }> {
   res.clearCookie('access_token');
   res.clearCookie('refresh_token');
   return { message: 'Logged out successfully' };
@@ -119,7 +119,7 @@ async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Respons
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getprofile(@CurrentUser() user : any){
-    return user;
+  getprofile(@CurrentUser() user : any): Promise<UserResponseDto> {
+    return this.authService.getProfile(user.id);
   }
 }

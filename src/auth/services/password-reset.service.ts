@@ -45,7 +45,7 @@ export class PasswordResetService {
     const email = this.normalizeEmail(dto.email);
     this.rateLimitService.enforce(email, ip);
 
-    const user = await this.userModel.findOne({ email });
+    const user = await this.userModel.findOne({ email }).lean().exec();
     if (!user) {
       return { message: 'If this email exists, a reset code has been sent' };
     }
@@ -114,7 +114,7 @@ export class PasswordResetService {
     record.verifiedAt = new Date();
     await record.save();
 
-    const user = await this.userModel.findOne({ email });
+    const user = await this.userModel.findOne({ email }).lean().exec();
     if (!user) {
       throw new BadRequestException('Invalid or expired reset code');
     }

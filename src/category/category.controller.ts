@@ -18,6 +18,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { RolesGuard } from '../auth/guards/role.guard';
 import { Roles } from '../auth/decorators/roles.decorators';
+import { CategoryResponseDto } from './dto/responses/category-response.dto';
 
 @Controller('categories')
 export class CategoriesController {
@@ -28,7 +29,7 @@ export class CategoriesController {
   @Roles('admin')
   @Post('admin')
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createCategoryDto: CreateCategoryDto) {
+  create(@Body() createCategoryDto: CreateCategoryDto): Promise<CategoryResponseDto> {
     return this.categoriesService.create(createCategoryDto);
   }
 
@@ -38,21 +39,21 @@ export class CategoriesController {
   findAllAdmin(
     @Query('page', ParseIntPipe) page: number = 1,
     @Query('limit', ParseIntPipe) limit: number = 10,
-  ) {
+  ): Promise<{ data: CategoryResponseDto[]; total: number; page: number; lastPage: number }> {
     return this.categoriesService.findAllAdmin(page, limit);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Get('admin/:id')
-  findOneForAdmin(@Param('id') id: string) {
+  findOneForAdmin(@Param('id') id: string): Promise<CategoryResponseDto> {
     return this.categoriesService.findOneById(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Patch('admin/:id')
-  update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
+  update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto): Promise<CategoryResponseDto> {
     return this.categoriesService.update(id, updateCategoryDto);
   }
 
@@ -60,18 +61,18 @@ export class CategoriesController {
   @Roles('admin')
   @Delete('admin/:id')
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: string): Promise<{ message: string }> {
     return this.categoriesService.remove(id);
   }
 
   // Public Endpoints
   @Get('tree')
-  getActiveTree() {
+  getActiveTree(): Promise<CategoryResponseDto[]> {
     return this.categoriesService.getActiveTree();
   }
 
   @Get('slug/:slug')
-  findOneBySlug(@Param('slug') slug: string) {
+  findOneBySlug(@Param('slug') slug: string): Promise<CategoryResponseDto> {
     return this.categoriesService.findOneBySlug(slug);
   }
 }

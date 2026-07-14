@@ -11,6 +11,7 @@ import  slugify from 'slugify';
 import { Category, CategoryDocument } from './category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { CategoryResponseDto } from './dto/responses/category-response.dto';
 
 @Injectable()
 export class CategoriesService {
@@ -19,13 +20,13 @@ export class CategoriesService {
   ) {}
 
   // --- 1. Create ---
-  async create(createDto: CreateCategoryDto): Promise<CategoryDocument> {
-    let parent: CategoryDocument | null = null;  
+  async create(createDto: CreateCategoryDto): Promise<CategoryResponseDto> {
+    let parent: any = null;  
     let depth = 0;
     let fullPath = '';
 
     if (createDto.parent_id) {
-      parent = await this.categoryModel.findById(createDto.parent_id).exec();
+      parent = await this.categoryModel.findById(createDto.parent_id).lean().exec();
       if (!parent) {
         throw new NotFoundException(
           `Parent category with ID ${createDto.parent_id} not found`,
@@ -45,11 +46,11 @@ export class CategoriesService {
       path: fullPath,
     });
 
-    return await newCategory.save();
+    return CategoryResponseDto.fromEntity(await newCategory.save());
   }
 
   // --- 2. Admin Find All (with Pagination) ---
-  async findAllAdmin(page: number = 1, limit: number = 10) {
+  async findAllAdmin(page: number = 1, limit: number = 10): Promise<{ data: CategoryResponseDto[]; total: number; page: number; lastPage: number }> {
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
       this.categoryModel
@@ -57,12 +58,13 @@ export class CategoriesService {
         .sort({ order: 1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
+        .lean()
         .exec(),
       this.categoryModel.countDocuments().exec(),
     ]);
 
     return {
-      data,
+      data: CategoryResponseDto.fromEntity(data),
       total,
       page,
       lastPage: Math.ceil(total / limit),
@@ -70,38 +72,43 @@ export class CategoriesService {
   }
 
   // --- 3. Get Active Tree (for Frontend) ---
-  async getActiveTree(): Promise<any[]> {
+  async getActiveTree(): Promise<CategoryResponseDto[]> {
     const categories = await this.categoryModel
       .find({ is_active: true })
       .sort({ order: 1, name: 1 })
+      .lean()
       .exec();
 
-    return this.buildTree(categories);
+    return CategoryResponseDto.fromEntity(this.buildTree(categories));
   }
 
   // --- 4. Find by ID ---
-  async findOneById(id: string): Promise<CategoryDocument> {
-    const category = await this.categoryModel.findById(id).exec();
+  async findOneById(id: string): Promise<CategoryResponseDto> {
+    const category = await this.categoryModel.findById(id).lean().exec();
     if (!category) {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
-    return category;
+    return CategoryResponseDto.fromEntity(category);
   }
 
   // --- 5. Find by Slug (Public) ---
-  async findOneBySlug(slug: string): Promise<CategoryDocument> {
+  async findOneBySlug(slug: string): Promise<CategoryResponseDto> {
     const category = await this.categoryModel
       .findOne({ slug, is_active: true })
+      .lean()
       .exec();
     if (!category) {
       throw new NotFoundException(`Category with slug "${slug}" not found`);
     }
-    return category;
+    return CategoryResponseDto.fromEntity(category);
   }
 
   // --- 6. Update ---
-  async update(id: string, updateDto: UpdateCategoryDto): Promise<CategoryDocument> {
-    const currentCategory = await this.findOneById(id);
+  async update(id: string, updateDto: UpdateCategoryDto): Promise<CategoryResponseDto> {
+    const currentCategory = await this.categoryModel.findById(id).lean().exec();
+    if (!currentCategory) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
 
     if (updateDto.parent_id && updateDto.parent_id === id) {
       throw new BadRequestException('A category cannot be its own parent');
@@ -115,7 +122,7 @@ export class CategoriesService {
         newDepth = 0;
         newPath = '';
       } else {
-        const newParent = await this.categoryModel.findById(updateDto.parent_id).exec();
+        const newParent = await this.categoryModel.findById(updateDto.parent_id).lean().exec();
         if (!newParent) {
           throw new NotFoundException('New parent category not found');
         }
@@ -158,7 +165,7 @@ export class CategoriesService {
       await this.updateDescendantsPaths(currentCategory, updatedCategory);
     }
 
-    return updatedCategory;
+    return CategoryResponseDto.fromEntity(updatedCategory);
   }
 
   // --- 7. Remove (Soft Delete) ---
@@ -194,7 +201,7 @@ export class CategoriesService {
     if (excludeId) {
       query._id = { $ne: new Types.ObjectId(excludeId) };
     }
-    const existing = await this.categoryModel.findOne(query).exec();
+    const existing = await this.categoryModel.findOne(query).lean().exec();
     if (existing) {
       throw new ConflictException(
         `Slug "${slug}" is already taken. Please change the name.`,
@@ -207,8 +214,7 @@ export class CategoriesService {
     const roots: any[] = [];
 
     categories.forEach((cat) => {
-      const obj = cat.toObject ? cat.toObject() : cat;
-      map.set(obj._id.toString(), { ...obj, children: [] });
+      map.set(cat._id.toString(), { ...cat, children: [] });
     });
 
     categories.forEach((cat) => {
@@ -225,8 +231,8 @@ export class CategoriesService {
   }
 
   private async updateDescendantsPaths(
-    oldCategory: CategoryDocument,
-    newCategory: CategoryDocument,
+    oldCategory: any,
+    newCategory: any,
   ): Promise<void> {
     const oldPathPrefix = oldCategory.path
       ? `${oldCategory.path},${oldCategory._id}`

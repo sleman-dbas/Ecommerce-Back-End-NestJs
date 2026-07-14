@@ -8,6 +8,7 @@ import { MongooseValidationFilter } from './common/filters/mongoose-validation.f
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import appConfig from './config/app.config';
+import { ResponseWrapInterceptor } from './common/interceptors/response-wrap.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -24,6 +25,8 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: false },
     }),
   );
+
+  app.useGlobalInterceptors(new ResponseWrapInterceptor());
 
   app.useGlobalFilters(
     new MongoExceptionFilter(),

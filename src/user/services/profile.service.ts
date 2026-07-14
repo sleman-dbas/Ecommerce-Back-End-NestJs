@@ -5,6 +5,7 @@ import { User, UserDocument } from '../user.schema';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { UpdateProfileDto } from '../dto/UpdateProfile.dto';
 import * as bcrypt from 'bcrypt';
+import { UserResponseDto } from '../../common/dto/responses/user-response.dto';
 
 @Injectable()
 export class ProfileService {
@@ -12,23 +13,25 @@ export class ProfileService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
-  async getProfile(userId: string) {
-    const user = await this.userModel.findById(userId).select('-password -__v');
+  async getProfile(userId: string): Promise<UserResponseDto> {
+    const user = await this.userModel.findById(userId).select('-password -__v').lean().exec();
     if (!user) throw new NotFoundException('User not found');
-    return { status: 200, message: 'Profile retrieved successfully', data: user };
+    return UserResponseDto.fromEntity(user);
   }
 
-  async updateProfile(userId: string, updateProfileDto: UpdateProfileDto) {
+  async updateProfile(userId: string, updateProfileDto: UpdateProfileDto): Promise<UserResponseDto> {
 
     const user = await this.userModel
       .findByIdAndUpdate(userId, updateProfileDto, { new: true, runValidators: true })
-      .select('-password -__v');
+      .select('-password -__v')
+      .lean()
+      .exec();
 
     if (!user) throw new NotFoundException('User not found');
-    return { status: 200, message: 'Profile updated successfully', data: user };
+    return UserResponseDto.fromEntity(user);
   }
 
-  async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<UserResponseDto> {
     const { oldPassword, newPassword } = changePasswordDto;
     const user = await this.userModel.findById(userId).select('+password');
     if (!user) throw new NotFoundException('User not found');
@@ -40,7 +43,6 @@ export class ProfileService {
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
-    const { password, ...result } = user.toObject();
-    return { status: 200, message: 'Password updated successfully', data: result };
+    return UserResponseDto.fromEntity(user);
   }
 }
