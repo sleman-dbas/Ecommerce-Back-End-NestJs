@@ -21,9 +21,9 @@ export class CategoriesService {
 
   // --- 1. Create ---
   async create(createDto: CreateCategoryDto): Promise<CategoryResponseDto> {
-    let parent: any = null;  
+    let parent: any = null;
+    let ancestors: Types.ObjectId[] = [];
     let depth = 0;
-    let fullPath = '';
 
     if (createDto.parent_id) {
       parent = await this.categoryModel.findById(createDto.parent_id).lean().exec();
@@ -32,18 +32,19 @@ export class CategoriesService {
           `Parent category with ID ${createDto.parent_id} not found`,
         );
       }
-      depth = parent.tree_depth + 1;
-      fullPath = parent.path ? `${parent.path},${parent._id}` : `${parent._id}`;
+      ancestors = [...(parent.ancestors ?? []), parent._id];
+      depth = ancestors.length;
     }
 
     const slug = this.generateSlug(createDto.name);
-    await this.ensureSlugIsUnique(slug);
+    await this.ensureSlugIsUnique(slug, createDto.parent_id ? new Types.ObjectId(createDto.parent_id) : null);
 
     const newCategory = new this.categoryModel({
       ...createDto,
+      parent_id: createDto.parent_id ? new Types.ObjectId(createDto.parent_id) : null,
       slug,
-      tree_depth: depth,
-      path: fullPath,
+      ancestors,
+      depth,
     });
 
     return CategoryResponseDto.fromEntity(await newCategory.save());
@@ -55,7 +56,7 @@ export class CategoriesService {
     const [data, total] = await Promise.all([
       this.categoryModel
         .find()
-        .sort({ order: 1, createdAt: -1 })
+        .sort({ sort_order: 1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean()
@@ -75,7 +76,7 @@ export class CategoriesService {
   async getActiveTree(): Promise<CategoryResponseDto[]> {
     const categories = await this.categoryModel
       .find({ is_active: true })
-      .sort({ order: 1, name: 1 })
+      .sort({ sort_order: 1, name: 1 })
       .lean()
       .exec();
 
@@ -114,34 +115,41 @@ export class CategoriesService {
       throw new BadRequestException('A category cannot be its own parent');
     }
 
-    let newDepth = currentCategory.tree_depth;
-    let newPath = currentCategory.path;
+    let newParentId = currentCategory.parent_id ?? null;
+    let newAncestors = [...(currentCategory.ancestors ?? [])];
+    let newDepth = currentCategory.depth;
 
     if (updateDto.parent_id !== undefined) {
       if (updateDto.parent_id === null || updateDto.parent_id === '') {
+        newParentId = null;
+        newAncestors = [];
         newDepth = 0;
-        newPath = '';
       } else {
         const newParent = await this.categoryModel.findById(updateDto.parent_id).lean().exec();
         if (!newParent) {
           throw new NotFoundException('New parent category not found');
         }
-        if (newParent.path.includes(id) || newParent._id.toString() === id) {
+        if (
+          newParent._id.toString() === id ||
+          (newParent.ancestors ?? []).some((ancestorId: Types.ObjectId) => ancestorId.toString() === id)
+        ) {
           throw new BadRequestException(
             'Cannot set a descendant category as the parent',
           );
         }
-        newDepth = newParent.tree_depth + 1;
-        newPath = newParent.path
-          ? `${newParent.path},${newParent._id}`
-          : `${newParent._id}`;
+        newParentId = new Types.ObjectId(updateDto.parent_id);
+        newAncestors = [...(newParent.ancestors ?? []), newParent._id];
+        newDepth = newAncestors.length;
       }
     }
 
     let newSlug = currentCategory.slug;
     if (updateDto.name && updateDto.name !== currentCategory.name) {
       newSlug = this.generateSlug(updateDto.name);
-      await this.ensureSlugIsUnique(newSlug, id);
+    }
+
+    if (updateDto.name || updateDto.parent_id !== undefined) {
+      await this.ensureSlugIsUnique(newSlug, newParentId, id);
     }
 
     const updatedCategory = await this.categoryModel
@@ -149,9 +157,10 @@ export class CategoriesService {
         id,
         {
           ...updateDto,
+          parent_id: newParentId,
           slug: newSlug,
-          tree_depth: newDepth,
-          path: newPath,
+          ancestors: newAncestors,
+          depth: newDepth,
         },
         { returnDocument: 'after', runValidators: true },
       )
@@ -162,7 +171,7 @@ export class CategoriesService {
     }
 
     if (updateDto.parent_id !== undefined) {
-      await this.updateDescendantsPaths(currentCategory, updatedCategory);
+      await this.updateDescendantsAncestors(currentCategory, updatedCategory);
     }
 
     return CategoryResponseDto.fromEntity(updatedCategory);
@@ -196,8 +205,12 @@ export class CategoriesService {
     });
   }
 
-  private async ensureSlugIsUnique(slug: string, excludeId?: string): Promise<void> {
-    const query: any = { slug };
+  private async ensureSlugIsUnique(
+    slug: string,
+    parentId: Types.ObjectId | null,
+    excludeId?: string,
+  ): Promise<void> {
+    const query: any = { slug, parent_id: parentId };
     if (excludeId) {
       query._id = { $ne: new Types.ObjectId(excludeId) };
     }
@@ -230,49 +243,30 @@ export class CategoriesService {
     return roots;
   }
 
-  private async updateDescendantsPaths(
+  private async updateDescendantsAncestors(
     oldCategory: any,
     newCategory: any,
   ): Promise<void> {
-    const oldPathPrefix = oldCategory.path
-      ? `${oldCategory.path},${oldCategory._id}`
-      : `${oldCategory._id}`;
-
-    const newPathPrefix = newCategory.path
-      ? `${newCategory.path},${newCategory._id}`
-      : `${newCategory._id}`;
-
-    const depthOffset = newCategory.tree_depth - oldCategory.tree_depth;
+    const oldPrefix = [...(oldCategory.ancestors ?? []), oldCategory._id];
+    const newPrefix = [...(newCategory.ancestors ?? []), newCategory._id];
 
     const descendants = await this.categoryModel
       .find({
-        path: { $regex: new RegExp('^' + oldPathPrefix) },
+        ancestors: oldCategory._id,
         _id: { $ne: newCategory._id },
       })
       .exec();
 
     for (const desc of descendants) {
-      const updatedPath = desc.path.replace(oldPathPrefix, newPathPrefix);
-      const updatedDepth = desc.tree_depth + depthOffset;
+      const relativeAncestors = desc.ancestors.slice(oldPrefix.length);
+      const updatedAncestors = [...newPrefix, ...relativeAncestors];
 
       await this.categoryModel
         .findByIdAndUpdate(desc._id, {
-          path: updatedPath,
-          tree_depth: updatedDepth,
+          ancestors: updatedAncestors,
+          depth: updatedAncestors.length,
         })
         .exec();
     }
-    // Note: The above loop updates each descendant one by one. For large trees, consider using bulkWrite for efficiency.
-    // the reasone do not use bulkWrite is because the Category is not a large collection and the number of descendants is usually small. If you expect a large number of descendants, you can uncomment the following bulkWrite implementation for better performance.
-    // const bulkOps = descendants.map(desc => ({
-    //   updateOne: {
-    //     filter: { _id: desc._id },
-    //     update: {
-    //       path: desc.path.replace(oldPathPrefix, newPathPrefix),
-    //       tree_depth: desc.tree_depth + depthOffset,
-    //     },
-    //   },
-    // }));
-    // await this.categoryModel.bulkWrite(bulkOps);
   }
 }

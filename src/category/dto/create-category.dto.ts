@@ -34,12 +34,12 @@ export class CreateCategoryDto {
   @IsUrl({}, { message: 'Image URL must be a valid URL' })
   image?: string;
 
-  @ApiProperty({description: 'Category order (optional)', required: false})
+  @ApiProperty({description: 'Category sort order (optional)', required: false})
   @IsOptional()
   @IsNumber()
-  @Min(0, { message: 'Order must be 0 or greater' })
+  @Min(0, { message: 'Sort order must be 0 or greater' })
   @Transform(({ value }) => parseInt(value))
-  order?: number;
+  sort_order?: number;
 
   @IsOptional()
   @IsBoolean()

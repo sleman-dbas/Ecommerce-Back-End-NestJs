@@ -30,7 +30,7 @@ export class CategoryResponseDto {
 
   @Expose()
   @ApiProperty({ example: 1 })
-  order!: number;
+  sort_order!: number;
 
   @Expose()
   @ApiProperty({ example: true })
