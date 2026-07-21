@@ -11,6 +11,7 @@ import {
   HttpStatus,
   ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { CategoriesService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -71,8 +72,9 @@ export class CategoriesController {
     return this.categoriesService.getActiveTree();
   }
 
-  @Get('slug/:slug')
-  findOneBySlug(@Param('slug') slug: string): Promise<CategoryResponseDto> {
-    return this.categoriesService.findOneBySlug(slug);
+  @Get('slug/*')
+  findOneByFullSlug(@Req() request: any): Promise<CategoryResponseDto> {
+    const fullSlug = request?.params?.[0] ?? request?.params?.['0'] ?? '';
+    return this.categoriesService.findOneByFullSlug(fullSlug);
   }
 }

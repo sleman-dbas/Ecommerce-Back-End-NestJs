@@ -5,8 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import  slugify from 'slugify';
+import { ClientSession, Model, Types } from 'mongoose';
+import slugify from 'slugify';
 
 import { Category, CategoryDocument } from './category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -24,6 +24,7 @@ export class CategoriesService {
     let parent: any = null;
     let ancestors: Types.ObjectId[] = [];
     let depth = 0;
+    let parentFullSlug: string | null = null;
 
     if (createDto.parent_id) {
       parent = await this.categoryModel.findById(createDto.parent_id).lean().exec();
@@ -34,6 +35,7 @@ export class CategoriesService {
       }
       ancestors = [...(parent.ancestors ?? []), parent._id];
       depth = ancestors.length;
+      parentFullSlug = parent.full_slug ?? null;
     }
 
     const slug = this.generateSlug(createDto.name);
@@ -43,6 +45,7 @@ export class CategoriesService {
       ...createDto,
       parent_id: createDto.parent_id ? new Types.ObjectId(createDto.parent_id) : null,
       slug,
+      full_slug: this.buildFullSlug(parentFullSlug, slug),
       ancestors,
       depth,
     });
@@ -92,89 +95,135 @@ export class CategoriesService {
     return CategoryResponseDto.fromEntity(category);
   }
 
-  // --- 5. Find by Slug (Public) ---
-  async findOneBySlug(slug: string): Promise<CategoryResponseDto> {
+  // --- 5. Find by Full Slug (Public) ---
+  async findOneByFullSlug(fullSlug: string): Promise<CategoryResponseDto> {
     const category = await this.categoryModel
-      .findOne({ slug, is_active: true })
+      .findOne({ full_slug: fullSlug, is_active: true })
       .lean()
       .exec();
     if (!category) {
-      throw new NotFoundException(`Category with slug "${slug}" not found`);
+      throw new NotFoundException(`Category with full slug "${fullSlug}" not found`);
     }
     return CategoryResponseDto.fromEntity(category);
   }
 
   // --- 6. Update ---
   async update(id: string, updateDto: UpdateCategoryDto): Promise<CategoryResponseDto> {
-    const currentCategory = await this.categoryModel.findById(id).lean().exec();
-    if (!currentCategory) {
-      throw new NotFoundException(`Category with ID ${id} not found`);
-    }
+    const session = await this.categoryModel.db.startSession();
+    try {
+      let response: CategoryResponseDto | null = null;
 
-    if (updateDto.parent_id && updateDto.parent_id === id) {
-      throw new BadRequestException('A category cannot be its own parent');
-    }
+      await session.withTransaction(async () => {
+        // MongoDB transactions are required here so a category move either updates
+        // the node and every descendant together or rolls the entire hierarchy back.
+        const currentCategory = await this.categoryModel
+          .findById(id)
+          .session(session)
+          .lean()
+          .exec();
 
-    let newParentId = currentCategory.parent_id ?? null;
-    let newAncestors = [...(currentCategory.ancestors ?? [])];
-    let newDepth = currentCategory.depth;
-
-    if (updateDto.parent_id !== undefined) {
-      if (updateDto.parent_id === null || updateDto.parent_id === '') {
-        newParentId = null;
-        newAncestors = [];
-        newDepth = 0;
-      } else {
-        const newParent = await this.categoryModel.findById(updateDto.parent_id).lean().exec();
-        if (!newParent) {
-          throw new NotFoundException('New parent category not found');
+        if (!currentCategory) {
+          throw new NotFoundException(`Category with ID ${id} not found`);
         }
-        if (
-          newParent._id.toString() === id ||
-          (newParent.ancestors ?? []).some((ancestorId: Types.ObjectId) => ancestorId.toString() === id)
-        ) {
-          throw new BadRequestException(
-            'Cannot set a descendant category as the parent',
+
+        if (updateDto.parent_id && updateDto.parent_id === id) {
+          throw new BadRequestException('A category cannot be its own parent');
+        }
+
+        const currentFullSlug = currentCategory.full_slug ?? this.buildFullSlug(null, currentCategory.slug);
+
+        let newParentId = currentCategory.parent_id ?? null;
+        let newAncestors = [...(currentCategory.ancestors ?? [])];
+        let newDepth = currentCategory.depth;
+        let newParentFullSlug: string | null = null;
+
+        if (updateDto.parent_id !== undefined) {
+          if (updateDto.parent_id === null || updateDto.parent_id === '') {
+            newParentId = null;
+            newAncestors = [];
+            newDepth = 0;
+            newParentFullSlug = null;
+          } else {
+            const newParent = await this.categoryModel
+              .findById(updateDto.parent_id)
+              .session(session)
+              .lean()
+              .exec();
+
+            if (!newParent) {
+              throw new NotFoundException('New parent category not found');
+            }
+
+            if (
+              newParent._id.toString() === id ||
+              (newParent.ancestors ?? []).some((ancestorId: Types.ObjectId) => ancestorId.toString() === id)
+            ) {
+              throw new BadRequestException(
+                'Cannot set a descendant category as the parent',
+              );
+            }
+
+            newParentId = new Types.ObjectId(updateDto.parent_id);
+            newAncestors = [...(newParent.ancestors ?? []), newParent._id];
+            newDepth = newAncestors.length;
+            newParentFullSlug = newParent.full_slug ?? null;
+          }
+        }
+
+        let newSlug = currentCategory.slug;
+        if (updateDto.name && updateDto.name !== currentCategory.name) {
+          newSlug = this.generateSlug(updateDto.name);
+        }
+
+        const resolvedParentFullSlug = newParentId
+          ? newParentFullSlug ?? this.getParentFullSlugFromPath(currentFullSlug)
+          : null;
+        const nextFullSlug = this.buildFullSlug(resolvedParentFullSlug, newSlug);
+
+        if (updateDto.name || updateDto.parent_id !== undefined) {
+          await this.ensureSlugIsUnique(newSlug, newParentId, id, session);
+        }
+
+        const updatedCategory = await this.categoryModel
+          .findByIdAndUpdate(
+            id,
+            {
+              ...updateDto,
+              parent_id: newParentId,
+              slug: newSlug,
+              full_slug: nextFullSlug,
+              ancestors: newAncestors,
+              depth: newDepth,
+            },
+            { returnDocument: 'after', runValidators: true, session },
+          )
+          .exec();
+
+        if (!updatedCategory) {
+          throw new NotFoundException(`Category with ID ${id} not found`);
+        }
+
+        if (nextFullSlug !== currentFullSlug) {
+          await this.updateDescendantsHierarchy(
+            currentCategory,
+            updatedCategory,
+            currentFullSlug,
+            nextFullSlug,
+            session,
           );
         }
-        newParentId = new Types.ObjectId(updateDto.parent_id);
-        newAncestors = [...(newParent.ancestors ?? []), newParent._id];
-        newDepth = newAncestors.length;
+
+        response = CategoryResponseDto.fromEntity(updatedCategory);
+      });
+
+      if (!response) {
+        throw new NotFoundException(`Category with ID ${id} not found`);
       }
+
+      return response;
+    } finally {
+      await session.endSession();
     }
-
-    let newSlug = currentCategory.slug;
-    if (updateDto.name && updateDto.name !== currentCategory.name) {
-      newSlug = this.generateSlug(updateDto.name);
-    }
-
-    if (updateDto.name || updateDto.parent_id !== undefined) {
-      await this.ensureSlugIsUnique(newSlug, newParentId, id);
-    }
-
-    const updatedCategory = await this.categoryModel
-      .findByIdAndUpdate(
-        id,
-        {
-          ...updateDto,
-          parent_id: newParentId,
-          slug: newSlug,
-          ancestors: newAncestors,
-          depth: newDepth,
-        },
-        { returnDocument: 'after', runValidators: true },
-      )
-      .exec();
-
-    if (!updatedCategory) {
-      throw new NotFoundException(`Category with ID ${id} not found`);
-    }
-
-    if (updateDto.parent_id !== undefined) {
-      await this.updateDescendantsAncestors(currentCategory, updatedCategory);
-    }
-
-    return CategoryResponseDto.fromEntity(updatedCategory);
   }
 
   // --- 7. Remove (Soft Delete) ---
@@ -205,24 +254,39 @@ export class CategoriesService {
     });
   }
 
+  private buildFullSlug(parentFullSlug: string | null, slug: string): string {
+    return parentFullSlug ? `${parentFullSlug}/${slug}` : slug;
+  }
+
+  private getParentFullSlugFromPath(fullSlug: string): string | null {
+    const lastSlashIndex = fullSlug.lastIndexOf('/');
+    return lastSlashIndex === -1 ? null : fullSlug.slice(0, lastSlashIndex);
+  }
+
   private async ensureSlugIsUnique(
     slug: string,
     parentId: Types.ObjectId | null,
     excludeId?: string,
+    session?: ClientSession,
   ): Promise<void> {
     const query: any = { slug, parent_id: parentId };
     if (excludeId) {
       query._id = { $ne: new Types.ObjectId(excludeId) };
     }
-    const existing = await this.categoryModel.findOne(query).lean().exec();
+    const uniqueQuery = this.categoryModel.findOne(query);
+    if (session) {
+      uniqueQuery.session(session);
+    }
+    const existing = await uniqueQuery.lean().exec();
     if (existing) {
       throw new ConflictException(
-        `Slug "${slug}" is already taken. Please change the name.`,
+        `Slug "${slug}" is already taken within this parent category. Please change the name.`,
       );
     }
   }
 
   private buildTree(categories: any[]): any[] {
+    // O(n): one pass indexes nodes in a Map and one pass wires each node to its parent.
     const map = new Map<string, any>();
     const roots: any[] = [];
 
@@ -243,9 +307,12 @@ export class CategoriesService {
     return roots;
   }
 
-  private async updateDescendantsAncestors(
+  private async updateDescendantsHierarchy(
     oldCategory: any,
     newCategory: any,
+    oldFullSlug: string,
+    newFullSlug: string,
+    session: ClientSession,
   ): Promise<void> {
     const oldPrefix = [...(oldCategory.ancestors ?? []), oldCategory._id];
     const newPrefix = [...(newCategory.ancestors ?? []), newCategory._id];
@@ -255,17 +322,27 @@ export class CategoriesService {
         ancestors: oldCategory._id,
         _id: { $ne: newCategory._id },
       })
+      .session(session)
+      .sort({ depth: 1 })
       .exec();
 
     for (const desc of descendants) {
       const relativeAncestors = desc.ancestors.slice(oldPrefix.length);
       const updatedAncestors = [...newPrefix, ...relativeAncestors];
+      const descendantSuffix = desc.full_slug.slice(oldFullSlug.length + 1);
 
+      // Sequential updates are preferred over bulkWrite because each descendant must
+      // preserve transactional rollback semantics and remain easy to reason about.
       await this.categoryModel
-        .findByIdAndUpdate(desc._id, {
-          ancestors: updatedAncestors,
-          depth: updatedAncestors.length,
-        })
+        .findByIdAndUpdate(
+          desc._id,
+          {
+            ancestors: updatedAncestors,
+            depth: updatedAncestors.length,
+            full_slug: `${newFullSlug}/${descendantSuffix}`,
+          },
+          { session },
+        )
         .exec();
     }
   }

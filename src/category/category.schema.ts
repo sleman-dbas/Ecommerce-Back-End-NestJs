@@ -9,9 +9,14 @@ export class Category {
   @Prop({ required: true, maxlength: 50, minlength: 2 })
   name!: string;
 
-  // URL-safe slug unique only within the same parent category.
+  // URL-safe slug unique only within the same parent category so siblings can
+  // reuse labels in different branches without forcing global uniqueness.
   @Prop({ required: true, maxlength: 100 })
   slug!: string;
+
+  // Full hierarchical slug used for public routing and SEO-friendly URLs.
+  @Prop({ required: true })
+  full_slug!: string;
 
   // Optional long-form description for SEO and merchandising.
   @Prop({ maxlength: 500 })
@@ -46,11 +51,13 @@ export class Category {
 export const CategorySchema = SchemaFactory.createForClass(Category);
 
 // Indexes tuned for hierarchical category lookups at scale.
-CategorySchema.index({ parent_id: 1 });
-CategorySchema.index({ ancestors: 1 });
-CategorySchema.index({ parent_id: 1, slug: 1 }, { unique: true });
-CategorySchema.index({ sort_order: 1 });
-CategorySchema.index({ is_active: 1 });
+// CategorySchema.index({ parent_id: 1 });
+// CategorySchema.index({ ancestors: 1 });
+// CategorySchema.index({ parent_id: 1, slug: 1 }, { unique: true });
+// CategorySchema.index({ full_slug: 1 }, { unique: true });
+// // This compound index matches the frontend tree query and avoids in-memory sorting.
+// CategorySchema.index({ is_active: 1, sort_order: 1, name: 1 });
+// CategorySchema.index({ sort_order: 1 });
 
 CategorySchema.set('toJSON', {
   transform: function (doc, ret: any) {

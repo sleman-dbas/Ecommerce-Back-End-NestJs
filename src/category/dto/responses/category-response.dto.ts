@@ -16,6 +16,10 @@ export class CategoryResponseDto {
   slug!: string;
 
   @Expose()
+  @ApiProperty({ example: 'electronics/phones/android' })
+  full_slug!: string;
+
+  @Expose()
   @ApiProperty({ example: 'Phones, laptops, and accessories', required: false })
   description?: string;
 
