@@ -5,7 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { MongooseModule } from '@nestjs/mongoose';
-import { User, UserSchema } from '../user/user.schema';
+import { User, UserSchema } from '../user/schemas/user.schema';
 import { PasswordResetToken, PasswordResetTokenSchema } from './schemas/password-reset-token.schema';
 import { PasswordResetService } from './services/password-reset.service';
 import { PasswordResetRateLimitService } from './services/password-reset-rate-limit.service';

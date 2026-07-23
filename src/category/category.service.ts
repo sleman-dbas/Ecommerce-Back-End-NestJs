@@ -8,7 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import slugify from 'slugify';
 
-import { Category, CategoryDocument } from './category.schema';
+import { Category, CategoryDocument } from './schemas/category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryResponseDto } from './dto/responses/category-response.dto';

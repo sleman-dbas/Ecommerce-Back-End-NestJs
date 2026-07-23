@@ -72,9 +72,9 @@ export class CategoriesController {
     return this.categoriesService.getActiveTree();
   }
 
-  @Get('slug/*')
-  findOneByFullSlug(@Req() request: any): Promise<CategoryResponseDto> {
-    const fullSlug = request?.params?.[0] ?? request?.params?.['0'] ?? '';
+  @Get('slug/*path')
+  findOneByFullSlug(@Param('path') path: string | string[]): Promise<CategoryResponseDto> {
+    const fullSlug = Array.isArray(path) ? path.join('/') : path ?? '';
     return this.categoriesService.findOneByFullSlug(fullSlug);
   }
 }

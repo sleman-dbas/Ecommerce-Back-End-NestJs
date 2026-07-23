@@ -13,7 +13,7 @@ import { Model } from 'mongoose';
 import { randomInt } from 'crypto';
 import { hash, compare } from 'bcrypt';
 import nodemailer from 'nodemailer';
-import { User, UserDocument } from '../../user/user.schema';
+import { User, UserDocument } from '../../user/schemas/user.schema';
 import {
   PasswordResetToken,
   PasswordResetTokenDocument,
