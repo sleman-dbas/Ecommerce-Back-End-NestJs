@@ -47,20 +47,17 @@ export class Supplier {
 export const SupplierSchema = SchemaFactory.createForClass(Supplier);
 
 // ================================================================
-//  الفهارس (Indexes) - تم تحسينها بناءً على تحليل الأداء
+// (Indexes) 
 // ================================================================
 
-// 1. فهرس مركب للـ slug مع is_active (للاستعلام الأكثر شيوعاً)
-//    استعلام: findOne({ slug, is_active: true })
-SupplierSchema.index({ slug: 1, is_active: 1 }, { unique: true });
+// query: findOne({ slug, is_active: true }) =>
+// SupplierSchema.index({ slug: 1, is_active: 1 }, { unique: true });
 
-// 2. فهرس مركب للحالة والترتيب (لجلب الموردين النشطين مرتبة)
-//    استعلام: find({ is_active: true }).sort({ sort_order: 1, name: 1 })
-SupplierSchema.index({ is_active: 1, sort_order: 1, name: 1 });
-
-// 3. فهرس النص (للبحث)
-//    استعلام: $text: { $search: ... }
-SupplierSchema.index({ name: 'text', description: 'text' });
+//    query : find({ is_active: true }).sort({ sort_order: 1, name: 1 })
+// SupplierSchema.index({ is_active: 1, sort_order: 1, name: 1 });
+    
+//    query : $text: { $search: ... }
+// SupplierSchema.index({ name: 'text', description: 'text' });
 
 // Now we dont use the index for sort_order, rating and email beacause we dont use them in the queries 
 
