@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './category/category.module';
 import { BrandsModule } from './brand/brand.module';
 import { CouponsModule } from './coupon/coupon.module';
+import { SuppliersModule } from './supplier/supplier.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
@@ -39,6 +40,7 @@ import mailConfig from './config/mail.config';
     CategoriesModule,
     BrandsModule,
     CouponsModule,
+    SuppliersModule,
   ],
   controllers: [],
   providers: [],
