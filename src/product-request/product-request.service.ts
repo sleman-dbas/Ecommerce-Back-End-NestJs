@@ -43,7 +43,7 @@ private normalizeText(text: string): string {
         'Customer email is required for guest requests. Please provide your email address.',
       );
     }
-    
+
     let customerEmail = createDto.customer_email;
     let customerName = createDto.customer_name;
 
@@ -78,7 +78,7 @@ private normalizeText(text: string): string {
         .findOneAndUpdate(
           searchQuery,
           {
-            $inc: { request_count: 1 }, // يزيد 1 إذا كان موجوداً، أو يبدأ بـ 1 إذا كان جديداً
+            $inc: { request_count: 1 }, 
             $setOnInsert: {
               product_name: createDto.product_name,
               normalized_product_name: normalizedProductName,
