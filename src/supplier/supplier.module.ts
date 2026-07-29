@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { SuppliersController } from './supplier.controller';
+import { SupplierAdminController } from './controllers/supplier.admin.controller';
+import { SupplierUserController } from './controllers/supplier.user.controller';
 import { SuppliersService } from './supplier.service';
 import { Supplier, SupplierSchema } from './schemas/supplier.schema';
 
@@ -8,7 +9,7 @@ import { Supplier, SupplierSchema } from './schemas/supplier.schema';
   imports: [
     MongooseModule.forFeature([{ name: Supplier.name, schema: SupplierSchema }]),
   ],
-  controllers: [SuppliersController],
+  controllers: [SupplierAdminController, SupplierUserController],
   providers: [SuppliersService],
   exports: [SuppliersService],
 })

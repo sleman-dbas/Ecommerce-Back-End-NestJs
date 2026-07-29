@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CategoriesController } from './category.controller';
+import { CategoryAdminController } from './controllers/category.admin.controller';
+import { CategoryUserController } from './controllers/category.user.controller';
 import { CategoriesService } from './category.service';
 import { Category, CategorySchema } from './schemas/category.schema';
 
@@ -8,7 +9,7 @@ import { Category, CategorySchema } from './schemas/category.schema';
   imports: [
     MongooseModule.forFeature([{ name: Category.name, schema: CategorySchema }]),
   ],
-  controllers: [CategoriesController],
+  controllers: [CategoryAdminController, CategoryUserController],
   providers: [CategoriesService],
   exports: [CategoriesService],
 })
