@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ProductRequestsController } from './product-request.controller';
-import { ProductRequestsService } from './product-request.service';
 import { ProductRequest, ProductRequestSchema } from './schemas/product-request.schema';
 import { User, UserSchema } from '../user/schemas/user.schema';
+import { ProductRequestUserController } from './controllers/product-request.user.controller';
+import { ProductRequestAdminController } from './controllers/product-request.admin.controller';
+import { ProductRequestService } from './services/product-request.service';
 
 @Module({
   imports: [
@@ -12,8 +13,8 @@ import { User, UserSchema } from '../user/schemas/user.schema';
       { name: User.name, schema: UserSchema },
     ]),
   ],
-  controllers: [ProductRequestsController],
-  providers: [ProductRequestsService],
-  exports: [ProductRequestsService],
+  controllers: [ProductRequestUserController, ProductRequestAdminController],
+  providers: [ProductRequestService],
+  exports: [ProductRequestService],
 })
 export class ProductRequestsModule {}
