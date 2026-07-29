@@ -32,65 +32,87 @@ private normalizeText(text: string): string {
     .replace(/[^a-z0-9\u0600-\u06FF]/g, '');
 }
 
-  // ============= 1. إنشاء طلب منتج جديد (عام) =============
+  // ============= 1. إنشاء طلب منتج جديد =============
   async create(
     createDto: CreateProductRequestDto,
     userId?: string,
   ): Promise<ProductRequestResponseDto> {
-    // 1. جلب معلومات المستخدم (إن وجد)
-    let user: User | null = null;
+
+     if (!userId && !createDto.customer_email) {
+      throw new BadRequestException(
+        'Customer email is required for guest requests. Please provide your email address.',
+      );
+    }
+    
     let customerEmail = createDto.customer_email;
     let customerName = createDto.customer_name;
 
-    // if user is logged in, fetch their email and name from the user collection
+    // 1. جلب بيانات المستخدم المسجل بأقل حجم بيانات ممكن
     if (userId) {
-      user = await this.userModel.findById(userId).lean().exec();
+      const user = await this.userModel.findById(userId).select('name email').lean().exec();
       if (user) {
         customerEmail = user.email;
         customerName = user.name;
       }
     }
 
-    // 2. تطبيع اسم المنتج
     const normalizedProductName = this.normalizeText(createDto.product_name);
+    const userObjectId = userId ? new Types.ObjectId(userId) : null;
 
-    // 3. استخدام عملية ذرية (Atomic) مع findOneAndUpdate + upsert
-    const result = await this.productRequestModel.findOneAndUpdate(
-      {
-        user_id: userId ? new Types.ObjectId(userId) : null,
-        normalized_product_name: normalizedProductName,
-        status: { $in: [RequestStatus.PENDING, RequestStatus.REVIEWED, RequestStatus.APPROVED] },
-        is_active: true,
-      },
-      {
-        $inc: { request_count: 1 },
-        $setOnInsert: {
-          product_name: createDto.product_name,
-          normalized_product_name: normalizedProductName,
-          description: createDto.description,
-          product_url: createDto.product_url,
-          customer_email: customerEmail,
-          customer_name: customerName,
-          suggested_category_id: createDto.suggested_category_id
-            ? new Types.ObjectId(createDto.suggested_category_id)
-            : null,
-          status: RequestStatus.PENDING,
-          request_count: 1,
-          is_active: true,
-        },
-      },
-      {
-        upsert: true,      // ينشئ جديداً إذا لم يوجد
-        returnDocument: 'after',        
-        setDefaultsOnInsert: true, // default values will be applied if a new document is created from schema defaults
-      },
-    )
-      .populate('user_id', 'name email')
-      .populate('suggested_category_id', 'name slug')
-      .lean()
-      .exec();
+    // 2. بناء استعلام البحث المخصص للمسجلين والزوار
+    const searchQuery: Record<string, any> = {
+      normalized_product_name: normalizedProductName,
+      is_active: true,
+      status: { $in: [RequestStatus.PENDING, RequestStatus.REVIEWED, RequestStatus.APPROVED] },
+    };
 
-    return ProductRequestResponseDto.fromEntity(result);
+    if (userObjectId) {
+      searchQuery.user_id = userObjectId;
+    } else {
+      searchQuery.user_id = null;
+      searchQuery.customer_email = customerEmail;
+    }
+
+    try {
+      const result = await this.productRequestModel
+        .findOneAndUpdate(
+          searchQuery,
+          {
+            $inc: { request_count: 1 }, // يزيد 1 إذا كان موجوداً، أو يبدأ بـ 1 إذا كان جديداً
+            $setOnInsert: {
+              product_name: createDto.product_name,
+              normalized_product_name: normalizedProductName,
+              description: createDto.description,
+              product_url: createDto.product_url,
+              customer_email: customerEmail,
+              customer_name: customerName,
+              user_id: userObjectId,
+              suggested_category_id: createDto.suggested_category_id
+                ? new Types.ObjectId(createDto.suggested_category_id)
+                : null,
+              status: RequestStatus.PENDING,
+              is_active: true,
+            },
+          },
+          {
+            upsert: true,
+            returnDocument: 'after',
+            setDefaultsOnInsert: true,
+          },
+        )
+        .populate('user_id', 'name email')
+        .populate('suggested_category_id', 'name slug')
+        .lean()
+        .exec();
+
+      return ProductRequestResponseDto.fromEntity(result);
+    } catch (error: any) {
+      // التعامل مع Race Condition عبر إعادة المحاولة
+      if (error.code === 11000) {
+        return this.create(createDto, userId);
+      }
+      throw error;
+    }
   }
 
   // ============= 2. جلب كل الطلبات (للأدمن) =============
