@@ -9,6 +9,7 @@ import { BrandsModule } from './brand/brand.module';
 import { CouponsModule } from './coupon/coupon.module';
 import { SuppliersModule } from './supplier/supplier.module';
 import { ProductRequestsModule } from './product-request/product-request.module';
+import { TaxesModule } from './tax/tax.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
@@ -43,6 +44,7 @@ import mailConfig from './config/mail.config';
     CouponsModule,
     SuppliersModule,
     ProductRequestsModule,
+    TaxesModule,
   ],
   controllers: [],
   providers: [],
